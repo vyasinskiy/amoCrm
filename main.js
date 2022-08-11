@@ -12,7 +12,7 @@ async function start() {
     const companiesWithDeals = new Set(deals.map((deal) => deal._embedded.companies.map((company) => company.id)).flat());
     const contactsWithoutDeals = contacts.filter((contact) => contact._embedded.companies.some((company) => !companiesWithDeals.has(company.id)));
     for await (const contact of contactsWithoutDeals) {
-        await createTaskForNewDeal(contact.id);
+        await createTaskForNewDeal(contact.name);
     }
 }
 
@@ -25,10 +25,15 @@ async function getContacts() {
                 Authorization: `Bearer ${accessToken}`,
             }
         });
-        const data = await response.json();
-        return data._embedded.contacts;
+
+        if (response.ok) {
+            const data = await response.json();
+            return data._embedded.contacts;
+        } else {
+            console.error('Error occured while getting contacts: ' + response.status);
+        }
     } catch (error) {
-        console.log(error);
+        console.error(error);
         return [];
     }
 }
@@ -40,25 +45,36 @@ async function getDeals() {
                 Authorization: `Bearer ${accessToken}`,
             }
         });
-        const data = await response.json();
-        return data._embedded.leads;
+
+        if (response.ok) {
+            const data = await response.json();
+            return data._embedded.leads;
+        } else {
+            console.error('Error occured while getting contacts: ' + response.status);
+        }
     } catch (error) {
-        console.log(error);
+        console.error(error);
         return [];
     }
 }
 
-async function createTaskForNewDeal(contactId) {
+async function createTaskForNewDeal(name) {
     try {
-        // const response = await fetch(baseAccountUrl + 'api/v4/leads', {
-        //     headers: {
-        //         Authorization: `Bearer ${accessToken}`,
-        //     }
-        // });
-        // const data = await response.json();
-        // return data._embedded.leads;
+        const unixDateNow = Math.floor(Date.now() / 1000);
+        const unixTomorrowTimestamp = 60 * 60 * 24;
+        const body = [{
+            text: `Организовать сделку с ${name}`,
+            complete_till: unixDateNow + unixTomorrowTimestamp,
+        }];
+        await fetch(baseAccountUrl + '/api/v4/tasks', {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+            method: 'post',
+        });
     } catch (error) {
-        // console.log(error);
-        // return [];
+        console.error(error);
     }
 }
